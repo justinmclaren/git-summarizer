@@ -61,7 +61,7 @@ runs:
           try {
             const daysToAnalyze = process.env.DAYS_TO_ANALYZE || "7";
             const lastWeekLog = execSync(
-              `git log --since="${daysToAnalyze} days ago" --pretty=format:"%ad | %s%n%b%n----------------------" --date=format:"%B %d, %Y"`
+              `git log --since="${daysToAnalyze} days ago" --pretty=format:"%ad | %an | %s" --date=short --reverse`
             ).toString();
 
             if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY environment variable is required');
@@ -85,11 +85,11 @@ runs:
               messages: [
                 {
                   role: 'system',
-                  content: 'You are a helpful assistant that summarizes git changes for Slack messages. Create a bullet-pointed list where each point starts with the commit date, ordered from oldest to newest. Group multiple related changes from the same day under the same date. For each change, analyze the commit message and try to identify which product area it affects (e.g. UI/UX, Backend API, Database, Authentication, Analytics, etc). Include your best guess about the product area in [brackets] after each change. Focus on the main features, improvements, and fixes. Exclude any commits that start with "chore:". Format the output to look good in Slack - use • for bullet points and *bold* for dates. For any PR references like (#1234), wrap them in a hyperlink to https://github.com/gentrace/gentrace/pull/1234. After listing all changes, add a section titled "🚀 *Potential Features Released*" that provides a high-level summary of the major features and improvements that appear to have been released based on these changes.'
+                  content: 'You help an engineering team write weekly status updates for non-technical stakeholders (VPs, sales, recruiters, etc.).\n\nYou will receive a list of git commits. Each commit line has:\n- date | author name | commit message\n\nYour job:\n- Group the report by author.\n- For each author, write a short, business-friendly summary of what they delivered this period.\n- Focus on end-user and business impact (faster login, fewer errors, smoother navigation, better reporting, etc.).\n- Merge multiple related commits into 2–4 bullets per person (no 1:1 mapping to commits).\n- Avoid technical jargon and implementation details (no "refactor", "webhook", "Redis", etc.).\n- Ignore purely internal chores like version bumps or doc tweaks unless they clearly impact users or the business.\n\nOutput format (Slack markdown):\n- For each author:\n  * Line 1: the author name in *bold*, e.g. *Justin McLaren*\n  * Then 2–4 bullet points starting with "• "\n\nExample structure:\n\n*Justin McLaren*\n• Improved login speed so users can sign in faster and drop off less during onboarding.\n• Fixed minor UI issues in settings to make navigation clearer.\n\n*Alice Smith*\n• Added better reporting so leaders can see weekly activity at a glance.\n• Reduced errors in the application flow, improving reliability for customers.'
                 },
                 {
                   role: 'user',
-                  content: `Please create a Slack-formatted bullet-point summary of these git changes, including your best guess about affected product areas, with most recent changes at the end. Exclude any commits that start with "chore:". For any PR references like (#1234), wrap them in a hyperlink to https://github.com/gentrace/gentrace/pull/1234. End with a high-level summary of potential features released:\n${lastWeekLog}`
+                  content: `Here are the git commits for this period:\n\n${lastWeekLog}\n\nPlease group by author and create business-friendly summaries following the format specified.`
                 }
               ]
             });
